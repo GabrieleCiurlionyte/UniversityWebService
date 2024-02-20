@@ -17,11 +17,18 @@ namespace UniversityService.Controllers
             _context = context;
         }
 
-        // GET: api/Courses
+        // GET /Courses?pageNumber=1&pageSize=5
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Course>>> GetCourses()
+        public async Task<ActionResult<IEnumerable<Course>>> GetCourses(int pageNumber = 1, int pageSize = 10)
         {
-            return await _context.Courses.ToListAsync();
+            var courses = _context.Courses.Skip((pageNumber - 1) * pageSize).Take(pageSize);
+
+            if (!courses.Any())
+            {
+                return NotFound("This page does not exist");;
+            }
+
+            return await courses.AsNoTracking().ToListAsync();
         }
 
         // GET: api/Courses/5
@@ -62,7 +69,7 @@ namespace UniversityService.Controllers
             }
             catch (DbUpdateConcurrencyException)
             {
-                if (!CourseExists(id))
+                if (!ControllerHelper.CourseExists(_context, id))
                 {
                     return NotFound();
                 }
@@ -104,11 +111,6 @@ namespace UniversityService.Controllers
             await _context.SaveChangesAsync();
 
             return NoContent();
-        }
-
-        private bool CourseExists(int id)
-        {
-            return _context.Courses.Any(e => e.CourseId == id);
         }
     }
 }

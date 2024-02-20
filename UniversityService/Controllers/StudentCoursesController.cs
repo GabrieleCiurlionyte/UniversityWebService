@@ -16,92 +16,71 @@ namespace UniversityService.Controllers
             _context = context;
         }
 
-        // GET: api/StudentCourses
+        // GET: api/StudentCourses?pageNumber=1&pageSize=5
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<StudentCourse>>> GetStudentCourses()
+        public async Task<ActionResult<IEnumerable<StudentCourse>>> GetStudentCourses(int pageNumber = 1, int pageSize = 10)
         {
-            return await _context.StudentCourses.ToListAsync();
+            var studentCourses = _context.StudentCourses.Skip((pageNumber - 1) * pageSize).Take(pageSize);
+
+            if (!studentCourses.Any())
+            {
+                return NotFound("This page does not exist");
+            }
+            return await studentCourses.AsNoTracking().ToListAsync();
         }
 
-        // GET: api/StudentCourses/5
-        [HttpGet("{id}")]
+        // GET: api/StudentCourses/1/courses/1
+        [HttpGet("{studentId}/courses/{courseId}")]
         public async Task<ActionResult<StudentCourse>> GetStudentCourse(int studentId, int courseId)
         {
-            //todo: TEST
+
             var studentCourse = await _context.StudentCourses.FindAsync(studentId, courseId);
 
             if (studentCourse == null)
             {
-                return NotFound();
+                return NotFound($"The {nameof(studentCourse)} with {nameof(studentId)}:" +
+                                $"{studentId} and {nameof(courseId)}:{courseId} does not exist.");
             }
 
             return studentCourse;
         }
 
-        // PUT: api/Courses/5
-        //TODO: test
-        [HttpPut("{id}")]
-        public async Task<IActionResult> PutStudentCourse(int studentId, int courseId, StudentCourse studentCourse)
-        {
-            //Search for studentId
-            //Search for courseId
-
-            //if (id != course.CourseId)
-            //{
-            //    return BadRequest();
-            //}
-
-            _context.Entry(studentCourse).State = EntityState.Modified;
-
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!StudentCourseExist(studentId, courseId))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
-
-            return NoContent();
-        }
-
-        //TODO test
-        // POST: api/Courses
+        // POST: api/StudentCourses
         [HttpPost]
-        public async Task<ActionResult<Course>> PostStudentCourse(StudentCourse studentCourse)
+        public async Task<ActionResult<StudentCourse>> PostStudentCourse(StudentCourse studentCourse)
         {
+            if (ControllerHelper.StudentCourseExists(_context, studentCourse))
+            {
+                return BadRequest($"A course with {nameof(studentCourse.CourseId)}:{studentCourse.CourseId} " +
+                                  $"and {nameof(studentCourse.StudentId)}:{studentCourse.StudentId} already exists.");
+            }
+
+            if (!ControllerHelper.ValidateCourse(_context, studentCourse.CourseId) || !ControllerHelper.ValidateStudent(_context,studentCourse.StudentId))
+            {
+                return BadRequest($"The given {nameof(studentCourse.CourseId)} or {nameof(studentCourse.StudentId)} does not exist");
+            }
+
             _context.StudentCourses.Add(studentCourse);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetStudentCourse", new { studentCourse.CourseId, studentCourse.StudentId }, studentCourse);
+            return studentCourse;
         }
 
-        // DELETE: api/Courses/5
-        [HttpDelete("{id}")]
+        // DELETE: api/StudentCourses/1/courses/1
+        [HttpDelete("{studentId}/courses/{courseId}")]
         public async Task<IActionResult> DeleteStudentCourse(int studentId, int courseId)
         {
             var studentCourse = await _context.StudentCourses.FindAsync(studentId, courseId);
             if (studentCourse == null)
             {
-                return NotFound();
+                return NotFound($"The wanted to delete {nameof(studentCourse)} with {nameof(studentId)}:" +
+                                $"{studentId} and {nameof(courseId)}:{courseId} does not exist.");
             }
 
             _context.StudentCourses.Remove(studentCourse);
             await _context.SaveChangesAsync();
 
             return NoContent();
-        }
-
-        private bool StudentCourseExist(int studentId, int courseId)
-        {
-            return _context.StudentCourses.Any(e => e.StudentId == studentId && e.CourseId == courseId);
         }
     }
 }

@@ -17,11 +17,17 @@ namespace UniversityService.Controllers
             _context = context;
         }
 
-        // GET: api/Students
+        // GET: api/Students?pageNumber=1&pageSize=5
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Student>>> GetStudents()
+        public async Task<ActionResult<IEnumerable<Student>>> GetStudents(int pageNumber = 1, int pageSize = 10)
         {
-            return await _context.Students.ToListAsync();
+            var students = _context.Students.Skip((pageNumber - 1) * pageSize).Take(pageSize);
+
+            if (!students.Any())
+            {
+                return NotFound("This page does not exist");
+            }
+            return await students.AsNoTracking().ToListAsync();
         }
 
         // GET: api/Students/5
@@ -62,7 +68,7 @@ namespace UniversityService.Controllers
             }
             catch (DbUpdateConcurrencyException)
             {
-                if (!StudentExists(id))
+                if (!ControllerHelper.StudentExists(_context, id))
                 {
                     return NotFound();
                 }
@@ -102,11 +108,6 @@ namespace UniversityService.Controllers
             await _context.SaveChangesAsync();
 
             return NoContent();
-        }
-
-        private bool StudentExists(int id)
-        {
-            return _context.Students.Any(e => e.Id == id);
         }
     }
 }
